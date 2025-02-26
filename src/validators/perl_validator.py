@@ -14,6 +14,8 @@ class PerlValidator:
     
     def validate(self):
         logger.info(f"Validating Perl application: {self.app_config['name']}")
+        print(f"DEBUG: Checking for source directory at: {self.source_dir}")
+        print(f"DEBUG: Directory exists: {os.path.isdir(self.source_dir)}")
         
         if not os.path.isdir(self.source_dir):
             logger.error(f"Source directory not found: {self.source_dir}")

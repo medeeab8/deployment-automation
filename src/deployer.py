@@ -20,10 +20,11 @@ logging.basicConfig(
 logger = logging.getLogger("deployer")
 
 class DeploymentManager:
-    def __init__(self, app_name, env_name, version=None):
+    def __init__(self, app_name, env_name, version=None, test_mode=False):
         self.app_name = app_name
         self.env_name = env_name
         self.version = version or datetime.now().strftime('%Y%m%d.%H%M%S')
+        self.test_mode = test_mode
         
 
         with open('config/environments.yaml', 'r') as file:
@@ -93,11 +94,12 @@ def main():
     parser.add_argument("app", help="Application name (defined in apps.yaml)")
     parser.add_argument("environment", help="Target environment (defined in environments.yaml)")
     parser.add_argument("--version", help="Version tag (defaults to timestamp)")
+    parser.add_argument("--test", action="store_true", help="Run in test mode (no actual deployments)")
     args = parser.parse_args()
     
 
     try:
-        manager = DeploymentManager(args.app, args.environment, args.version)
+        manager = DeploymentManager(args.app, args.environment, args.version, test_mode=args.test)
         success = manager.run_deployment()
         sys.exit(0 if success else 1)
     except Exception as e:

@@ -15,6 +15,8 @@ class PythonValidator:
     def validate(self):
         logger.info(f"Validating Python application: {self.app_config['name']}")
         
+        print(f"DEBUG: Checking for source directory at: {self.source_dir}")
+        print(f"DEBUG: Directory exists: {os.path.isdir(self.source_dir)}")
         if not os.path.isdir(self.source_dir):
             logger.error(f"Source directory not found: {self.source_dir}")
             return False
