@@ -5,6 +5,9 @@ app_packager.py - Base packaging functionality
 import os
 import logging
 from abc import ABC, abstractmethod
+import shutil
+import subprocess
+import tempfile
 
 logger = logging.getLogger("packager")
 
@@ -24,3 +27,69 @@ class BasePackager(ABC):
     def package(self, version):
         """Package the application and return the path to the package"""
         pass
+
+class PythonPackager(BasePackager):
+    """Handles packaging of Python applications"""
+    
+    def package(self, version):
+        """Package a Python application"""
+        logger.info(f"Packaging Python application {self.app_name} version {version}")
+        
+        # Determine packaging method
+        if self.app_config.get('package_type') == 'wheel':
+            return self._package_wheel(version)
+        else:
+            # Default to simple tarball for now
+            return self._package_simple_tarball(version)
+    
+    def _package_wheel(self, version):
+        """Package as Python wheel"""
+        # Create a temporary directory for building
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Copy source to temp directory
+            temp_source = os.path.join(temp_dir, self.app_name)
+            shutil.copytree(self.source_dir, temp_source)
+            
+            # Check if setup.py exists
+            setup_py = os.path.join(temp_source, 'setup.py')
+            if not os.path.exists(setup_py):
+                logger.error(f"No setup.py found in {self.source_dir}")
+                raise FileNotFoundError(f"No setup.py found in {self.source_dir}")
+            
+            # Build the wheel
+            subprocess.run(
+                ['python', 'setup.py', 'bdist_wheel'],
+                cwd=temp_source,
+                check=True
+            )
+            
+            # Copy the wheel to our build directory
+            dist_dir = os.path.join(temp_source, 'dist')
+            wheel_name = None
+            for file in os.listdir(dist_dir):
+                if file.endswith('.whl'):
+                    wheel_name = file
+                    break
+            
+            if not wheel_name:
+                raise RuntimeError("Failed to build wheel package")
+            
+            wheel_path = os.path.join(dist_dir, wheel_name)
+            target_path = os.path.join(self.build_dir, wheel_name)
+            shutil.copy(wheel_path, target_path)
+            
+            return target_path
+    
+    def _package_simple_tarball(self, version):
+        """Package as a simple tarball"""
+        tar_name = f"{self.app_name}-{version}.tar.gz"
+        tar_path = os.path.join(self.build_dir, tar_name)
+        
+        # Create tarball using tar command
+        subprocess.run(
+            ['tar', '-czf', tar_path, '-C', os.path.dirname(self.source_dir), 
+             os.path.basename(self.source_dir)],
+            check=True
+        )
+        
+        return tar_path
