@@ -93,3 +93,23 @@ class PythonPackager(BasePackager):
         )
         
         return tar_path
+    
+class PerlPackager(BasePackager):
+    """Handles packaging of Perl applications"""
+    
+    def package(self, version):
+        """Package a Perl application"""
+        logger.info(f"Packaging Perl application {self.app_name} version {version}")
+        
+        # For now, just create a simple tarball
+        tar_name = f"{self.app_name}-{version}.tar.gz"
+        tar_path = os.path.join(self.build_dir, tar_name)
+        
+        # Create tarball using tar command
+        subprocess.run(
+            ['tar', '-czf', tar_path, '-C', os.path.dirname(self.source_dir), 
+             os.path.basename(self.source_dir)],
+            check=True
+        )
+        
+        return tar_path
