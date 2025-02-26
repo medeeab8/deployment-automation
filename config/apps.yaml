@@ -1,0 +1,11 @@
+sample-python-app:
+  name: sample-python-app
+  type: python
+  source_dir: ./mock/python-app
+  package_type: tarball
+
+sample-perl-app:
+  name: sample-perl-app
+  type: perl
+  source_dir: ./mock/perl-app
+  package_type: tarball

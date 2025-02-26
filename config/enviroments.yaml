@@ -1,0 +1,4 @@
+development:
+  type: vm
+  hosts: [dev-server.example.com]
+  user: deploy
