@@ -94,6 +94,56 @@ class PythonPackager(BasePackager):
         
         return tar_path
     
+    def _create_dockerfile(self, dockerfile_path, base_image, commands):
+        with open(dockerfile_path, 'w') as f:
+            f.write(f"FROM {base_image}\n\n")
+            f.write("WORKDIR /app\n\n")
+        
+        for cmd in commands:
+            f.write(f"{cmd}\n")
+
+    def _package_docker(self, version):
+    # Create a temporary directory for Docker build
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_copy = os.path.join(temp_dir, self.app_name)
+            shutil.copytree(self.source_dir, source_copy)
+        
+            # Create Dockerfile
+            dockerfile_path = os.path.join(temp_dir, 'Dockerfile')
+            base_image = self.app_config.get('python_base_image', 'python:3.9-slim')
+        
+            # Define Docker commands
+            commands = [
+                "COPY . /app/",
+                "RUN pip install --no-cache-dir -r requirements.txt",
+                f"ENV APP_VERSION={version}",
+                f"LABEL version={version}",
+                "EXPOSE 8000",
+                "CMD [\"python\", \"app.py\"]"
+            ]
+        
+            # custom commands 
+            if 'docker_commands' in self.app_config:
+                commands.extend(self.app_config['docker_commands'])
+                
+            self._create_dockerfile(dockerfile_path, base_image, commands)
+            
+            # Build Docker image
+            image_name = f"{self.app_name.lower()}:{version}"
+            subprocess.run(
+                ['docker', 'build', '-t', image_name, '.'],
+                cwd=temp_dir,
+                check=True
+            )
+            
+            tar_path = os.path.join(self.build_dir, f"{self.app_name}-{version}.tar")
+            subprocess.run(
+                ['docker', 'save', '-o', tar_path, image_name],
+                check=True
+            )
+            
+            return tar_path
+    
 class PerlPackager(BasePackager):
     """Handles packaging of Perl applications"""
     
