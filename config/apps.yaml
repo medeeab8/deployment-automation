@@ -1,11 +1,11 @@
 python-app:
   name: python-app
   type: python
-  source_dir: .tests/mock/python-app
+  source_dir: tests/mock/python-app
   package_type: tarball
 
 perl-app:
   name: perl-app
   type: perl
-  source_dir: .tests/mock/perl-app
+  source_dir: tests/mock/perl-app
   package_type: tarball
