@@ -1,3 +1,4 @@
 src/__pycache__/
 src/validators/__pycache__/
 build/
+tests/__pycache__/
