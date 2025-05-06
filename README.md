@@ -1,5 +1,3 @@
-# deployment-automation
-
 # Deployment Automation Tool
 
 A flexible, extensible framework for packaging and deploying applications across different environments. This tool supports multiple programming languages, packaging methods, and deployment targets through a modular, configuration-driven architecture.
