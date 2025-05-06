@@ -28,6 +28,14 @@ class BasePackager(ABC):
         """Package the application and return the path to the package"""
         pass
 
+    def _create_dockerfile(self, dockerfile_path, base_image, commands):
+        with open(dockerfile_path, 'w') as f:
+            f.write(f"FROM {base_image}\n\n")
+            f.write("WORKDIR /app\n\n")
+            
+            for cmd in commands:
+                f.write(f"{cmd}\n")
+
 class PythonPackager(BasePackager):
     """Handles packaging of Python applications"""
     
@@ -93,24 +101,16 @@ class PythonPackager(BasePackager):
         )
         
         return tar_path
-    
-def _create_dockerfile(self, dockerfile_path, base_image, commands):
-    with open(dockerfile_path, 'w') as f:
-        f.write(f"FROM {base_image}\n\n")
-        f.write("WORKDIR /app\n\n")
-        
-        for cmd in commands:
-            f.write(f"{cmd}\n")
 
     def _package_docker(self, version):
         with tempfile.TemporaryDirectory() as temp_dir:
             source_copy = os.path.join(temp_dir, self.app_name)
             shutil.copytree(self.source_dir, source_copy)
-        
+            
             # Create Dockerfile
             dockerfile_path = os.path.join(temp_dir, 'Dockerfile')
             base_image = self.app_config.get('python_base_image', 'python:3.9-slim')
-            
+                
             # Define Docker commands
             commands = [
                 "COPY . /app/",
@@ -119,6 +119,109 @@ def _create_dockerfile(self, dockerfile_path, base_image, commands):
                 f"LABEL version={version}",
                 "EXPOSE 8000",
                 "CMD [\"python\", \"app.py\"]"
+            ]
+                
+            # Add custom commands if specified
+            if 'docker_commands' in self.app_config:
+                commands.extend(self.app_config['docker_commands'])
+                    
+                self._create_dockerfile(dockerfile_path, base_image, commands)
+                
+                # Build Docker image - using subprocess with shell=True for Windows compatibility
+                image_name = f"{self.app_name.lower()}:{version}"
+                logger.info(f"Building Docker image: {image_name}")
+                
+                build_cmd = f"docker build -t {image_name} ."
+                build_result = subprocess.run(
+                    build_cmd,
+                    cwd=temp_dir,
+                    shell=True,
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                
+            if build_result.returncode != 0:
+                error_msg = f"Docker build failed: {build_result.stderr}"
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+                    
+            logger.info("Docker image built successfully")
+                
+
+            tar_path = os.path.join(self.build_dir, f"{self.app_name}-{version}.tar")
+            logger.info(f"Saving Docker image to: {tar_path}")
+                
+            save_cmd = f"docker save -o {tar_path} {image_name}"
+            save_result = subprocess.run(
+                save_cmd,
+                shell=True,
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+                
+            if save_result.returncode != 0:
+                error_msg = f"Docker save failed: {save_result.stderr}"
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+                    
+            logger.info(f"Docker image saved to {tar_path}")
+            return tar_path
+        
+class PerlPackager(BasePackager):
+    """Handles packaging of Perl applications"""
+    
+    def package(self, version):
+        """Package a Perl application"""
+        logger.info(f"Packaging Perl application {self.app_name} version {version}")
+        
+        # For now, just create a simple tarball
+        tar_name = f"{self.app_name}-{version}.tar.gz"
+        tar_path = os.path.join(self.build_dir, tar_name)
+        
+        # Create tarball using tar command
+        subprocess.run(
+            ['tar', '-czf', tar_path, '-C', os.path.dirname(self.source_dir), 
+             os.path.basename(self.source_dir)],
+            check=True
+        )
+        
+        return tar_path
+
+    def _package_simple_tarball(self, version):
+        """Package as a simple tarball"""
+        tar_name = f"{self.app_name}-{version}.tar.gz"
+        tar_path = os.path.join(self.build_dir, tar_name)
+        
+        # Create tarball using tar command
+        subprocess.run(
+            ['tar', '-czf', tar_path, '-C', os.path.dirname(self.source_dir), 
+             os.path.basename(self.source_dir)],
+            check=True
+        )
+        
+        return tar_path
+    
+    def _package_docker(self, version):
+        """Package as a Docker image"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_copy = os.path.join(temp_dir, self.app_name)
+            shutil.copytree(self.source_dir, source_copy)
+        
+            # Create Dockerfile
+            dockerfile_path = os.path.join(temp_dir, 'Dockerfile')
+            base_image = self.app_config.get('perl_base_image', 'perl:5.32-slim')
+            
+            # Define Docker commands
+            commands = [
+                "COPY . /app/",
+                f"ENV APP_VERSION={version}",
+                f"LABEL version={version}",
+                "EXPOSE 8000",
+                "CMD [\"perl\", \"app.pl\"]"
             ]
             
             # Add custom commands if specified
@@ -149,7 +252,6 @@ def _create_dockerfile(self, dockerfile_path, base_image, commands):
                 
             logger.info("Docker image built successfully")
             
-
             tar_path = os.path.join(self.build_dir, f"{self.app_name}-{version}.tar")
             logger.info(f"Saving Docker image to: {tar_path}")
             
@@ -170,23 +272,3 @@ def _create_dockerfile(self, dockerfile_path, base_image, commands):
                 
             logger.info(f"Docker image saved to {tar_path}")
             return tar_path
-    
-class PerlPackager(BasePackager):
-    """Handles packaging of Perl applications"""
-    
-    def package(self, version):
-        """Package a Perl application"""
-        logger.info(f"Packaging Perl application {self.app_name} version {version}")
-        
-        # For now, just create a simple tarball
-        tar_name = f"{self.app_name}-{version}.tar.gz"
-        tar_path = os.path.join(self.build_dir, tar_name)
-        
-        # Create tarball using tar command
-        subprocess.run(
-            ['tar', '-czf', tar_path, '-C', os.path.dirname(self.source_dir), 
-             os.path.basename(self.source_dir)],
-            check=True
-        )
-        
-        return tar_path
