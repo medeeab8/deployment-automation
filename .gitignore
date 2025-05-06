@@ -5,3 +5,4 @@ tests/__pycache__/
 tests/mock/perl-app/test.pl
 tests/mock/python-app/test.py
 tests/mock/python-wheel-app/
+src/deployment_automation.egg-info/
