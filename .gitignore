@@ -2,3 +2,6 @@ src/__pycache__/
 src/validators/__pycache__/
 build/
 tests/__pycache__/
+tests/mock/perl-app/test.pl
+tests/mock/python-app/test.py
+tests/mock/python-wheel-app/
